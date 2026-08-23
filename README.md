@@ -13,6 +13,14 @@
     - https://bs.yanwan.store/run4/ 验证码001或998
 - 如无法刷步数同步到支付宝等，建议重新注册一个新的。
 
+## 新注册账号使用方法
+
+由于新注册账号没有绑定过手环，会导致华米拦截向微信同步步数，此时你需要做的就是绑定一次小米1-7代任意手环即可。如果没有可以参考以下步骤：
+- 前往 `https://bs.yanwan.store/run4/` 网站执行一次步数同步
+- 该网站会自动为你账号绑定一个虚拟设备（感谢该建站大佬）
+- 你可以在你 Zepp Life 中看到这个虚拟的设备
+- 然后按照以下步骤进行配置即可成功同步了
+
 ### 如果觉得好用，请给一个免费的[star](https://github.com/TonyJiangWJ/mimotion/)吧
 
 ## Github Actions 部署指南
@@ -191,6 +199,35 @@
   - 可用网站：https://www.toolhelper.cn/SymmetricEncryption/AES
 - 以上两种方式都可以提取 CONFIG，PAT，AES_KEY 三个Secrets配置，请自行选择。
 
+### 九、清理历史 Commit 记录（保持 Git 历史干净）
+
+#### 1. 为什么需要清理历史 Commit？
+旧版本的工作流每次刷完步数后都会自动提交 `persist tokens` 或 `random cron` 到仓库，久而久之会导致 Fork 的仓库积累成百上千条无用的运行日志 Commit，让提交历史显得非常杂乱。
+
+新版本已重构为基于 `actions/cache` 的 **0-commit 架构**，日常自动刷步数不会产生任何 Commit 提交。如果你希望把历史上积累的垃圾 Commit 一次性清空，可执行下方命令。
+
+#### 2. 操作步骤（仅剥离 Actions 日志提交，100% 保留所有代码修改）
+在项目本地终端中依次运行：
+
+```bash
+# 步骤 1: 创建安全备份分支 (以防误操作，可随时一键还原)
+git branch backup-master
+
+# 步骤 2: 过滤并剥离所有 github-actions 的自动提交
+git filter-branch -f --commit-filter '
+    if [ "$GIT_AUTHOR_NAME" = "github-actions" ] || [ "$GIT_AUTHOR_NAME" = "github-actions[bot]" ]; then
+        skip_commit "$@";
+    else
+        git commit-tree "$@";
+    fi
+' HEAD
+
+# 步骤 3: 强制推送到 GitHub 远程仓库（覆盖远程杂乱历史）
+git push -f origin master
+```
+
+> **安全恢复说明**：如果不慎误操作，运行 `git reset --hard backup-master && git push -f origin master` 即可瞬间还原。确认清理效果满意后，可使用 `git branch -D backup-master` 删除备份分支。
+
 ## 注意事项
 
 1. 默认每天运行6+次，由run.yml中的cron控制，分钟为随机值，执行后自动更新分钟值，随机后可能当前整点二次执行，例如：8:
@@ -244,3 +281,35 @@
   北京时间: '37 9,12,15,18,20,22 * * *'
   next exec time: UTC(14:37) 北京时间(22:37)
   ```
+
+## 本地开发
+
+复制 `.env.example` 文件为 `.env`，并在 `.env` 中填入你的配置信息
+```shell
+cp .env.example .env
+```
+**注意**：`.env` 文件已添加到 .gitignore 中，请不要推送到代码仓库中以免造成数据泄露
+
+创建 python 虚拟环境
+```shell
+python3 -m venv venv
+```
+
+激活虚拟环境
+```shell
+# Windows
+./venv/Script/Activate
+
+# Linux
+source ./venv/bin/activate
+```
+
+安装依赖
+```shell
+pip install -r requirements.txt
+```
+
+执行脚本修改步数
+```shell
+python3 main.py
+```
